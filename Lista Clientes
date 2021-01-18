@@ -1,0 +1,123 @@
+#######################################################################################################################
+####################################### Caso de Estudio Clustering - Clientes  ########################################
+#######################################################################################################################
+library(readr)
+segmentation_data <- read_csv("C:/Users/henry/OneDrive/Desktop/segmentation_data.csv")
+View(segmentation_data)
+
+#######################################################################################################################
+#options(max.print = 1000)
+d=dist(segmentation_data[,2:4],method = "euclidean")                  #compara instancias
+d                                                                     #matriz de distancias
+
+c=cor(segmentation_data[,2:4])                                        #corelacion compara variables
+c
+
+library(corrplot)
+corrplot(c)
+
+fit=cmdscale(d,eig = TRUE,k=2)                                        #escalamiento
+fit$points
+
+x=fit$points[,1]
+y=fit$points[,2]
+
+plot(x,y)
+text(x,y,labels = row.names(segmentation_data),cex = 0.8)
+
+#############################################  CREAR GRUPOS  #########################################################
+###############################################   k-means  ###########################################################
+
+grupos=kmeans(segmentation_data[,2:4],4)                              #se necesita definir el numero de grupos
+g1=grupos$cluster
+g1
+g2=grupos$size
+g2
+
+plot(x,y,col=c("red","green","blue","cyan")[g1],main="Clientes K-means")
+
+write.csv(g1,file = "lista.csv")
+
+#comparacion <-cbind(segmentation_data,g1)
+#View(comparacion)
+
+######################################  Agrupamiento Jerarquico DHC  ##################################################
+#######################################################################################################################
+
+#install.packages("dendextend")
+library(dendextend)
+dhc=hclust(d,method = "complete")
+clust4=cutree(dhc,4)                #se ncecita la distancia de la matriz y el numero de cluster
+clust4
+
+write.csv(clust4,file = "lista cluste.csv")
+
+dend=as.dendrogram(dhc)
+dend=color_branches(dend,3)
+colors=c("red","green","blue","cyan")
+plot(dend,fill=colors[clust4],main="Clientes DHC")
+
+################################################  Metodo elbow   #####################################################
+wi=c()
+for(i in 1:10)
+{
+  g=kmeans(segmentation_data[,2:4],i)
+  wi[i]=g$tot.withinss                 #Suma de Cuadrados debido al Error SSE
+}
+wi
+plot((1:length(wi)),wi, xlab = "Numero de Gupos", ylab = "SSE", pch=8, type = "b")
+
+
+############################################# Validacion Interna  ####################################################
+############################################     indice dunn     #####################################################
+
+install.packages("cluster")
+install.packages("clValid")
+library(cluster)
+library(clValid)
+
+du1=dunn(d,g1)
+du1
+
+du2=dunn(d,clust4)
+du2    
+
+#########################################  Coeficiente de Silueta  ####################################################
+
+si1=silhouette(g1,d)                   # k-means
+si1
+plot(si1,col=1:4,border=NA)
+
+si2=silhouette(clust4,d)               # jerarquico DHC
+si2
+plot(si2,col=1:4,border=NA)
+
+############################################# Validacion Externa  ####################################################
+############################################     indice ARI     ######################################################
+
+install.packages("aricode")
+install.packages("plyr")
+library(aricode)
+library(plyr)
+
+ground=segmentation_data$`Ground Truth`
+ground
+ARI1=ARI(ground,g1)
+ARI1
+ARI2=ARI(ground,clust4)
+ARI2
+
+
+############################################     indice AMI     ######################################################
+AMI1=AMI(ground,g1)
+AMI1
+AMI2=AMI(ground,clust4)
+AMI2
+
+
+############################################     indice NMI     ######################################################
+
+NMI1=NMI(ground,g1,variant = "joint")
+NMI1
+NMI2=NMI(ground,clust4,variant = "joint")
+NMI2
